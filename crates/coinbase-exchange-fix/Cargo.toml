@@ -3,6 +3,7 @@ name = "coinbase-exchange-fix"
 version = "0.1.0"
 edition = "2024"
 description = "Standalone Coinbase Exchange FIX 5.0 SP2 client"
+license = "BSD-3-Clause"
 publish = false
 
 [dependencies]

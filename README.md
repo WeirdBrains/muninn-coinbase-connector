@@ -1,0 +1,113 @@
+# muninn-coinbase-connector
+
+A [Muninn](https://github.com/WeirdBrains/muninn) ingest connector for Coinbase Exchange
+FIX, and the FIX client it is built on.
+
+`crates/coinbase-exchange-fix` is a standalone FIX 5.0 SP2 client. It logs on to the
+Exchange order-entry, market-data, and drop-copy gateways, signs the logon, and keeps
+the session (heartbeats, test requests, sequence reset, and paged resend). It has no
+knowledge of Muninn.
+
+`muninn-coinbase-connector` is the ingest connector. On each run it opens one FIX
+session, reads for a bounded interval, and stores each application message as JSON.
+When the schedule has a pipeline it calls `pipe`. When the schedule has a rule set it
+calls `run_ruleset`. Drop copy and order entry keep the highest inbound sequence and
+resume from the next one. Market data starts a fresh session so each pull gets a new
+snapshot. Order entry listens for execution reports on that session.
+
+Licensed under the BSD 3-Clause License. Copyright (c) 2026 Weird Brains LLC.
+See [LICENSE](LICENSE).
+
+## Build
+
+Install a recent Rust toolchain, then from this repository:
+
+```sh
+cargo build --release
+```
+
+The plugin is `target/release/libmuninn_coinbase_connector.so`
+(`.dylib` on macOS, `.dll` on Windows).
+
+## Install
+
+Muninn loads that library as a prebuilt plugin. Create a source for the raw items,
+install the library, and approve it:
+
+```sh
+mnnn sources add coinbase
+mnnn plugins install target/release/libmuninn_coinbase_connector.so --kind ingest-connector --name coinbase
+mnnn spaces approve coinbase
+```
+
+## Try a run
+
+Credentials come from the environment, or from schedule options
+`api_key`, `api_secret`, and `api_passphrase`.
+
+```sh
+export COINBASE_API_KEY=...
+export COINBASE_API_SECRET=...
+export COINBASE_API_PASSPHRASE=...
+
+mnnn spaces run coinbase --connector-dry-run \
+  --option gateway=drop-copy \
+  --option environment=sandbox
+```
+
+A dry run records `store_raw`, `pipe`, and `run_ruleset` instead of storing, piping,
+or running rules. The FIX session itself still connects.
+
+Leave `environment` unset and the connector uses the sandbox. Set
+`environment=production` when the schedule should use the production gateways.
+
+## Schedule
+
+```sh
+mnnn schedule add coinbase 15m \
+  --plugin coinbase \
+  --source coinbase \
+  --pipeline coinbase \
+  --connector-ruleset coinbase \
+  --option gateway=drop-copy \
+  --option environment=production
+```
+
+`--pipeline` and `--connector-ruleset` are optional. If you set them, the connector
+calls `pipe` and `run_ruleset` on every successful pull, including a pull that stored
+nothing. Raw items stay in the source. `mnnn sources data coinbase` lists them, and
+`mnnn sources cat coinbase ITEM` writes one back out.
+
+Each stored item is JSON: `msg_type`, `seq`, `poss_dup`, and `fields` (tag and value).
+Heartbeats and the other admin messages are omitted. Signature and passphrase fields
+are stored as `***`.
+
+### Options
+
+| Option | Meaning |
+|---|---|
+| `gateway` | `drop-copy` (default), `market-data`, `market-data-nosnap`, or `order-entry` |
+| `environment` | `sandbox` (default) or `production` |
+| `venue` | `exchange` (default) or `mica` |
+| `symbols` | Comma-separated product ids. Required for market data, for example `BTC-USD,ETH-USD` |
+| `depth` | `l2` (default), `l1`, or `l3` |
+| `listen_ms` | How long to read after logon. Default `10000`, at most `60000` |
+| `max_messages` | Application messages stored this run. Default `2000`, at most `20000` |
+| `heartbeat` | Seconds. Default `30` |
+| `reset` | `y` starts a new session. `n` resumes. By default, market data resets every run, and drop copy and order entry reset until a sequence cursor exists |
+| `api_key`, `api_secret`, `api_passphrase` | Or `COINBASE_API_KEY`, `COINBASE_API_SECRET`, and `COINBASE_API_PASSPHRASE` |
+
+## Release
+
+`release.py` bumps `muninn-coinbase-connector` in `Cargo.toml` (minor by default),
+writes the entry in `CHANGELOG.md`, commits the tree with your message, and pushes
+the current branch.
+
+```sh
+python release.py "Resume drop copy from the stored sequence"
+python release.py --patch "Correct the sandbox market-data port"
+python release.py --major "First stable connector"
+```
+
+`--major` and `--patch` choose the other components. The current branch must already
+track a remote, or the script pushes it to `origin` and sets the upstream.

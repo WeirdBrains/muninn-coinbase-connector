@@ -345,7 +345,7 @@ dependencies = [
 
 [[package]]
 name = "muninn-coinbase-connector"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "coinbase-exchange-fix",
  "muninn-plugin",
