@@ -28,15 +28,17 @@ dotnet tool install --global wix --version 7.0.1
 if ($LASTEXITCODE -ne 0) {
     throw "dotnet tool install exited $LASTEXITCODE"
 }
-$env:PATH = "$(Join-Path $env:USERPROFILE '.dotnet\tools');$env:PATH"
-
+$wix = Join-Path $env:USERPROFILE '.dotnet\tools\wix.exe'
 $payloadDefine = (Resolve-Path -LiteralPath $payload).Path.Replace('\', '/')
 $out = Join-Path $root "dist\muninn-coinbase-connector-$version-windows-$arch.msi"
-& wix build (Join-Path $root 'packaging\windows.wxs') `
-    --arch $wixArch `
-    --define "Version=$version" `
-    --define "Payload=$payloadDefine" `
-    --output $out
+$wxs = Join-Path $root 'packaging\windows.wxs'
+# WiX 7 refuses to build until this command accepts EULA id wix7. Switches are
+# the single-dash forms from `wix build -?`; `--arch` is not a switch.
+& $wix build '-acceptEula' 'wix7' '-arch' $wixArch `
+    '-d' "Version=$version" `
+    '-d' "Payload=$payloadDefine" `
+    '-out' $out `
+    $wxs
 if ($LASTEXITCODE -ne 0) {
     throw "wix build exited $LASTEXITCODE"
 }
