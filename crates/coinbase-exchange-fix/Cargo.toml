@@ -1,0 +1,23 @@
+[package]
+name = "coinbase-exchange-fix"
+version = "0.1.0"
+edition = "2024"
+description = "Standalone Coinbase Exchange FIX 5.0 SP2 client"
+publish = false
+
+[dependencies]
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+hmac = "0.12"
+log = "0.4"
+rust_decimal = "1"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+sha2 = "0.10"
+thiserror = "2"
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+uuid = { version = "1", features = ["v4"] }
+webpki-roots = "0.26"
+
+[dev-dependencies]
+rcgen = "0.13"
