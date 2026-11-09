@@ -6,8 +6,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [0.2.3] - 2026-11-09
 
-\
-- Added windows installer \
+- Added windows installer
 - Added Mac OS installer
 
 ## [0.2.2] - 2026-11-09
