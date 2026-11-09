@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-11-08
+
+Release now builds for all platforms
+
 ## [0.2.0] - 2026-11-08
 
 Added release script and LICENSE

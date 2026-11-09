@@ -1,0 +1,198 @@
+# A tag vMAJOR.MINOR.PATCH builds the plugin and publishes a GitHub release.
+# amd64 is Debian's name for x86_64, and aarch64 is Fedora and Arch's name for arm64.
+# The generic Linux archive is built on Ubuntu 22.04 (glibc 2.35) so it loads on
+# newer glibc systems. Debian, Fedora, and Arch packages are built on those distros.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x86_64
+            runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            arch: x86_64
+          - name: windows-arm64
+            runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            arch: arm64
+          - name: macos-x86_64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            arch: x86_64
+          - name: macos-arm64
+            runner: macos-15
+            target: aarch64-apple-darwin
+            arch: arm64
+          - name: linux-x86_64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            arch: x86_64
+          - name: linux-arm64
+            runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag against Cargo.toml
+        id: version
+        shell: bash
+        run: bash packaging/version.sh
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Test
+        run: cargo test --workspace --locked --release --target ${{ matrix.target }}
+      - name: Build the plugin
+        run: cargo build --locked --release -p muninn-coinbase-connector --target ${{ matrix.target }}
+      - name: Strip
+        if: runner.os == 'Linux'
+        run: strip --strip-unneeded target/${{ matrix.target }}/release/libmuninn_coinbase_connector.so
+      - name: Strip
+        if: runner.os == 'macOS'
+        run: strip -x target/${{ matrix.target }}/release/libmuninn_coinbase_connector.dylib
+      - name: Pack
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          if command -v python3 >/dev/null 2>&1; then
+            python3 packaging/pack_native.py
+          else
+            python packaging/pack_native.py
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  packages:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: debian-amd64
+            runner: ubuntu-22.04
+            image: debian:stable
+            kind: deb
+            arch: amd64
+          - name: debian-arm64
+            runner: ubuntu-22.04-arm
+            image: debian:stable
+            kind: deb
+            arch: arm64
+          - name: fedora-x86_64
+            runner: ubuntu-22.04
+            image: fedora:latest
+            kind: rpm
+            arch: x86_64
+          - name: fedora-aarch64
+            runner: ubuntu-22.04-arm
+            image: fedora:latest
+            kind: rpm
+            arch: aarch64
+          - name: arch-x86_64
+            runner: ubuntu-22.04
+            image: archlinux:latest
+            kind: arch
+            arch: x86_64
+          - name: arch-aarch64
+            runner: ubuntu-22.04-arm
+            image: archlinux:latest
+            kind: arch
+            arch: aarch64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag against Cargo.toml
+        id: version
+        run: bash packaging/version.sh
+      - name: Build the ${{ matrix.image }} package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          KIND: ${{ matrix.kind }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker run --rm --entrypoint sh \
+            -v "$PWD:/work" \
+            -w /work \
+            -e VERSION -e KIND -e ARCH \
+            -e DEBIAN_FRONTEND=noninteractive \
+            "${{ matrix.image }}" \
+            packaging/container.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: GitHub release
+    needs: [native, packages]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums and notes
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -eu
+          version="${VERSION#v}"
+          (
+            cd dist
+            sha256sum -- * > SHA256SUMS
+          )
+          {
+            echo "Muninn Coinbase connector ${version}."
+            echo
+            cat packaging/release-notes.md
+            echo
+            awk -v ver="$version" '
+              $0 ~ "^## \\[" ver "\\]" { show = 1; next }
+              show && /^## \[/ { exit }
+              show { print }
+            ' CHANGELOG.md
+          } > notes.md
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit "$tag" --notes-file notes.md --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$tag" \
+              --notes-file notes.md
+          fi

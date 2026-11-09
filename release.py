@@ -2,7 +2,8 @@
 """Bump muninn-coinbase-connector, record the changelog, commit, and push.
 
 The bump defaults to minor. Pass --major or --patch for the other components.
-The positional message is the git commit message and the changelog entry.
+The positional message is the git commit message, the changelog entry, and the
+message on the vMAJOR.MINOR.PATCH tag. Pushing that tag starts the release build.
 """
 
 from __future__ import annotations
@@ -194,7 +195,10 @@ def main() -> None:
     staged = git_lines(["git", "diff", "--cached", "--name-only"], root)
     if not staged:
         sys.exit("nothing to commit")
-    run(["git", "commit", "-F", "-"], root, input_text=args.message.strip() + "\n")
+    message = args.message.strip() + "\n"
+    run(["git", "commit", "-F", "-"], root, input_text=message)
+    tag = f"v{new}"
+    run(["git", "tag", "-a", tag, "-m", message], root)
     upstream = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
         cwd=root,
@@ -203,10 +207,10 @@ def main() -> None:
         check=False,
     )
     if upstream.returncode == 0:
-        run(["git", "push"], root)
+        run(["git", "push", "--follow-tags"], root)
     else:
-        run(["git", "push", "-u", "origin", "HEAD"], root)
-    print(new)
+        run(["git", "push", "-u", "origin", "HEAD", "--follow-tags"], root)
+    print(tag)
 
 
 if __name__ == "__main__":

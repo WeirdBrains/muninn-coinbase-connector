@@ -1,0 +1,3 @@
+*.sh text eol=lf
+packaging/container.sh text eol=lf
+.github/workflows/*.yml text eol=lf
