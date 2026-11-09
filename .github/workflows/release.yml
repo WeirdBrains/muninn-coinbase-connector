@@ -81,6 +81,22 @@ jobs:
           else
             python packaging/pack_native.py
           fi
+      - name: Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+          TARGET: ${{ matrix.target }}
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File packaging/windows-msi.ps1
+      - name: macOS installer
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+          TARGET: ${{ matrix.target }}
+        run: bash packaging/macos-pkg.sh
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
@@ -122,7 +138,8 @@ jobs:
             arch: x86_64
           - name: arch-aarch64
             runner: ubuntu-22.04-arm
-            image: archlinux:latest
+            # Official archlinux images are amd64 only. This one publishes linux/arm64.
+            image: menci/archlinuxarm:base
             kind: arch
             arch: aarch64
     steps:

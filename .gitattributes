@@ -1,3 +1,4 @@
 *.sh text eol=lf
 packaging/container.sh text eol=lf
+packaging/*.wxs text eol=lf
 .github/workflows/*.yml text eol=lf

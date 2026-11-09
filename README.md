@@ -117,14 +117,17 @@ release. It publishes one plugin build for each of these:
 
 | System | x86_64 (Debian calls this amd64) | arm64 (Fedora and Arch call this aarch64) |
 |---|---|---|
-| Windows | `windows-x86_64` `.zip` | `windows-arm64` `.zip` |
-| macOS | `macos-x86_64` archive | `macos-arm64` archive |
+| Windows | `.msi` and `.zip` for `x86_64` | `.msi` and `.zip` for `arm64` |
+| macOS | `.pkg` and archive for `x86_64` | `.pkg` and archive for `arm64` |
 | Generic Linux (Ubuntu 22.04, glibc 2.35 or newer) | `linux-x86_64` archive | `linux-arm64` archive |
 | Debian and deb-based distros with a new enough libc | `.deb` for `amd64` | `.deb` for `arm64` |
 | Fedora | `.rpm` for `x86_64` | `.rpm` for `aarch64` |
 | Arch Linux | `.pkg.tar.zst` for `x86_64` | `.pkg.tar.zst` for `aarch64` |
 
-The library inside a Debian package is `/usr/lib/muninn/libmuninn_coinbase_connector.so`.
-Fedora installs it under `/usr/lib64/muninn/`. Arch installs it under `/usr/lib/muninn/`.
-Windows archives contain `muninn_coinbase_connector.dll`. macOS archives contain
-`libmuninn_coinbase_connector.dylib`. Point `mnnn plugins install` at that file.
+The Windows installer puts `muninn_coinbase_connector.dll` in
+`C:\Program Files\Muninn Coinbase Connector\`. The macOS package puts
+`libmuninn_coinbase_connector.dylib` in `/usr/local/lib/muninn/`. The `.zip` and
+macOS archive are the same library without an installer. A Debian package installs
+`/usr/lib/muninn/libmuninn_coinbase_connector.so`. Fedora uses `/usr/lib64/muninn/`.
+Arch uses `/usr/lib/muninn/`. Point `mnnn plugins install` at that file. The Windows
+and macOS installers are not code-signed.

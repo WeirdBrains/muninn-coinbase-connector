@@ -38,8 +38,31 @@ case "$KIND" in
       "$stage/usr/lib/muninn/libmuninn_coinbase_connector.so"
     install -m 0644 LICENSE \
       "$stage/usr/share/doc/muninn-coinbase-connector/copyright"
-    depends=$(dpkg-shlibdeps -O "$stage/usr/lib/muninn/libmuninn_coinbase_connector.so" \
-      | sed 's/^shlibs:Depends=//')
+    # dpkg-shlibdeps refuses to run without a source control file, and a
+    # pipeline would hide that failure and leave Depends empty.
+    deptmp=$(mktemp -d)
+    mkdir -p "$deptmp/debian"
+    cat > "$deptmp/debian/control" <<EOF
+Source: muninn-coinbase-connector
+
+Package: muninn-coinbase-connector
+Architecture: ${ARCH}
+Description: placeholder
+ placeholder
+EOF
+    subst=$(mktemp)
+    so=/work/target/release/libmuninn_coinbase_connector.so
+    if ! (cd "$deptmp" && dpkg-shlibdeps -O "$so") > "$subst"; then
+      echo "dpkg-shlibdeps failed" >&2
+      cat "$subst" >&2
+      exit 1
+    fi
+    depends=$(sed -n 's/^shlibs:Depends=//p' "$subst")
+    if [ -z "$depends" ]; then
+      echo "dpkg-shlibdeps produced no shlibs:Depends" >&2
+      cat "$subst" >&2
+      exit 1
+    fi
     cat > "$stage/DEBIAN/control" <<EOF
 Package: muninn-coinbase-connector
 Version: ${VERSION}
@@ -102,7 +125,17 @@ EOF
     ;;
   arch)
     pacman-key --init
-    pacman-key --populate archlinux
+    found_ring=0
+    for ring in archlinux archlinuxarm; do
+      if [ -f "/usr/share/pacman/keyrings/${ring}.gpg" ]; then
+        pacman-key --populate "$ring"
+        found_ring=1
+      fi
+    done
+    if [ "$found_ring" -eq 0 ]; then
+      echo "no pacman keyring under /usr/share/pacman/keyrings" >&2
+      exit 1
+    fi
     pacman -Syu --noconfirm --needed base-devel curl ca-certificates pkgconf binutils
     host=$(uname -m)
     if [ "$host" != "$ARCH" ]; then
