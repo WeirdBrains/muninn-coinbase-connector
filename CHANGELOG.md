@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.4] - 2026-11-09
+
+Disable sandbox for arch-aarch64 build
+
 ## [0.2.3] - 2026-11-09
 
 - Added windows installer

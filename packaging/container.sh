@@ -136,6 +136,22 @@ EOF
       echo "no pacman keyring under /usr/share/pacman/keyrings" >&2
       exit 1
     fi
+    # pacman 7 sandboxes downloads with Landlock and then drops to the alpm
+    # user. Docker on the arm64 runner returns EPERM for that ruleset, so the
+    # database sync never starts. Apply the option only when this pacman
+    # accepts it, so an older pacman keeps its working config.
+    if ! grep -Eq '^[[:space:]]*DisableSandbox([[:space:]]|$)' /etc/pacman.conf; then
+      probe=$(mktemp)
+      if grep -Eq '^[[:space:]]*#[[:space:]]*DisableSandbox([[:space:]]|$)' /etc/pacman.conf; then
+        sed 's/^[[:space:]]*#[[:space:]]*DisableSandbox/DisableSandbox/' /etc/pacman.conf > "$probe"
+      else
+        sed '/^\[options\]/a DisableSandbox' /etc/pacman.conf > "$probe"
+      fi
+      if pacman-conf --config "$probe" >/dev/null 2>&1; then
+        cp "$probe" /etc/pacman.conf
+      fi
+      rm -f "$probe"
+    fi
     pacman -Syu --noconfirm --needed base-devel curl ca-certificates pkgconf binutils
     host=$(uname -m)
     if [ "$host" != "$ARCH" ]; then
