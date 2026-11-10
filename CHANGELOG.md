@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.8] - 2026-11-09
+
+Accept compressed Windows MSIs; reject only empty stubs and external cabinets
+
 ## [0.2.7] - 2026-11-09
 
 Fix WiX 7 TARGETDIR conflict and embed the MSI cabinet

@@ -47,17 +47,26 @@ if (-not (Test-Path -LiteralPath $out)) {
     throw "wix did not write $out"
 }
 
-foreach ($dir in @($root, (Join-Path $root 'dist'))) {
-    Get-ChildItem -LiteralPath $dir -Filter 'cab*.cab' -ErrorAction SilentlyContinue |
-        Remove-Item -Force
-    Get-ChildItem -LiteralPath $dir -Filter '*.wixpdb' -ErrorAction SilentlyContinue |
-        Remove-Item -Force
+# A 32 KiB stub plus a sidecar cab means the cabinet was not embedded.
+# A valid MSI can be smaller than the uncompressed DLL because the cabinet is compressed.
+$externalCabs = @()
+foreach ($dir in @([string]$root, (Join-Path $root 'dist'))) {
+    $externalCabs += @(Get-ChildItem -LiteralPath $dir -Filter 'cab*.cab' -ErrorAction SilentlyContinue)
+}
+if ($externalCabs) {
+    $names = ($externalCabs | ForEach-Object { $_.FullName }) -join ', '
+    throw "WiX left an external cabinet ($names); the MSI did not embed it"
 }
 
 $msiLength = (Get-Item -LiteralPath $out).Length
-$dllLength = (Get-Item -LiteralPath $dll).Length
-if ($msiLength -lt $dllLength) {
-    throw "MSI $msiLength bytes is smaller than the plugin DLL $dllLength bytes; cabinet was probably not embedded"
+$minEmbedded = 200000
+if ($msiLength -lt $minEmbedded) {
+    throw "MSI $msiLength bytes looks like an empty stub; cabinet was probably not embedded"
+}
+
+foreach ($dir in @($root, (Join-Path $root 'dist'))) {
+    Get-ChildItem -LiteralPath $dir -Filter '*.wixpdb' -ErrorAction SilentlyContinue |
+        Remove-Item -Force
 }
 
 Remove-Item -LiteralPath $payload -Recurse -Force
