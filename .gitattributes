@@ -1,4 +1,5 @@
 *.sh text eol=lf
 packaging/container.sh text eol=lf
+packaging/macos-postinstall text eol=lf
 packaging/*.wxs text eol=lf
 .github/workflows/*.yml text eol=lf

@@ -8,9 +8,9 @@ Debian, Fedora, and Arch packages are built on those distros.
 | `.deb` | `/usr/lib/muninn/libmuninn_coinbase_connector.so` |
 | Fedora `.rpm` | `/usr/lib64/muninn/libmuninn_coinbase_connector.so` |
 | Arch package | `/usr/lib/muninn/libmuninn_coinbase_connector.so` |
-| Windows `.msi` | `C:\Program Files\Muninn Coinbase Connector\muninn_coinbase_connector.dll` |
+| Windows `.msi` | `%MUNINN_HOME%\code\plugins\muninn_coinbase_connector.dll` when `MUNINN_HOME` is set, otherwise `%USERPROFILE%\.muninn\code\plugins\muninn_coinbase_connector.dll` |
 | Windows `.zip` | `muninn_coinbase_connector.dll` in the archive |
-| macOS `.pkg` | `/usr/local/lib/muninn/libmuninn_coinbase_connector.dylib` |
+| macOS `.pkg` | `$MUNINN_HOME/code/plugins/libmuninn_coinbase_connector.dylib` when `MUNINN_HOME` is set, otherwise `~/.muninn/code/plugins/libmuninn_coinbase_connector.dylib` |
 | macOS archive | `libmuninn_coinbase_connector.dylib` in the archive |
 
 The Windows and macOS installers are not code-signed.

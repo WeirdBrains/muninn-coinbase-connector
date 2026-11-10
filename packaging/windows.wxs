@@ -1,16 +1,22 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <!-- UpgradeCode stays fixed so a newer MSI replaces this install. -->
+  <!-- UpgradeCode stays fixed so a newer MSI replaces this install.
+       Per-user. MUNINN_HOME\code\plugins when that variable is set for the
+       account running the installer, otherwise %USERPROFILE%\.muninn\code\plugins. -->
   <Package
       Name="Muninn Coinbase Connector"
       Manufacturer="Weird Brains LLC"
       Version="$(var.Version)"
       UpgradeCode="7C4E9A2B-1D6F-4A83-9E25-B8C0D3F14A67"
       Language="1033"
-      Scope="perMachine"
+      Scope="perUser"
       InstallerVersion="500"
       Compressed="yes">
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of Muninn Coinbase Connector is already installed." />
+
+    <SetProperty Id="MUNINN_HOME_VALUE" Value="[%MUNINN_HOME]" Sequence="both" Before="SetInstallFromHome" />
+    <SetProperty Id="INSTALLFOLDER" Action="SetInstallFromHome" Value="[MUNINN_HOME_VALUE]\code\plugins" Sequence="both" Before="CostFinalize" Condition="MUNINN_HOME_VALUE" />
+    <SetProperty Id="INSTALLFOLDER" Action="SetInstallFromDefault" Value="[%USERPROFILE]\.muninn\code\plugins" Sequence="both" After="SetInstallFromHome" Condition="NOT MUNINN_HOME_VALUE" />
 
     <Feature Id="Main">
       <ComponentGroupRef Id="ProductComponents" />
@@ -18,9 +24,9 @@
   </Package>
 
   <Fragment>
-    <StandardDirectory Id="ProgramFiles6432Folder">
-      <Directory Id="INSTALLFOLDER" Name="Muninn Coinbase Connector" />
-    </StandardDirectory>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="INSTALLFOLDER" Name="plugins" />
+    </Directory>
   </Fragment>
 
   <Fragment>

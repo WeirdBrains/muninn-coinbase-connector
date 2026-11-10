@@ -1,0 +1,98 @@
+#!/bin/sh
+# Copy the plugin into the logged-in user's Muninn plugin directory.
+# Installer runs this as root, so ~ would be root's home. MUNINN_HOME is
+# taken from that user's session or shell startup, then the default home.
+set -eu
+
+here=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+console_user=$(stat -f '%Su' /dev/console)
+if [ -z "$console_user" ] || [ "$console_user" = "root" ]; then
+  echo "no logged-in user to install the Muninn plugin for" >&2
+  exit 1
+fi
+home=$(dscl . -read "/Users/$console_user" NFSHomeDirectory | awk '{print $2}')
+if [ -z "$home" ] || [ ! -d "$home" ]; then
+  echo "no home directory for $console_user" >&2
+  exit 1
+fi
+
+# First assignment of MUNINN_HOME in a file, without the export keyword.
+assignment_from() {
+  file=$1
+  [ -f "$file" ] || return 0
+  sed -n '
+    s/^[[:space:]]*export[[:space:]][[:space:]]*MUNINN_HOME=//p
+    t
+    s/^[[:space:]]*MUNINN_HOME=//p
+  ' "$file"
+}
+
+clean_assignment() {
+  v=$(printf '%s' "$1" | tr -d '\r')
+  case $v in
+    *' #'*) v=${v%% #*} ;;
+  esac
+  case $v in
+    \"*\") v=${v#\"}; v=${v%\"} ;;
+    \'*\') v=${v#\'}; v=${v%\'} ;;
+  esac
+  case $v in
+    '~') v=$home ;;
+    '~/'*) v=$home/${v#\~/} ;;
+    '$HOME') v=$home ;;
+    '$HOME/'*) v=$home/${v#\$HOME/} ;;
+    '${HOME}') v=$home ;;
+    '${HOME}/'*) v=$home/${v#\$\{HOME\}/} ;;
+    /*) ;;
+    *) v= ;;
+  esac
+  printf '%s' "${v%/}"
+}
+
+muninn_home=
+uid=$(id -u "$console_user")
+session=$(launchctl asuser "$uid" printenv MUNINN_HOME 2>/dev/null || true)
+if [ -n "$session" ]; then
+  muninn_home=$(clean_assignment "$session")
+fi
+if [ -z "$muninn_home" ]; then
+  for file in \
+    "$home/.zshenv" "$home/.zprofile" "$home/.zshrc" \
+    "$home/.bash_profile" "$home/.bashrc" "$home/.profile"
+  do
+    line=$(assignment_from "$file" | head -n 1)
+    [ -n "$line" ] || continue
+    muninn_home=$(clean_assignment "$line")
+    [ -n "$muninn_home" ] && break
+  done
+fi
+if [ -z "$muninn_home" ] && [ -n "${MUNINN_HOME:-}" ]; then
+  muninn_home=$(clean_assignment "$MUNINN_HOME")
+fi
+if [ -n "$muninn_home" ]; then
+  muninn=$muninn_home
+else
+  muninn=$home/.muninn
+fi
+
+if [ -d "$muninn" ]; then
+  owner=$(stat -f '%Su' "$muninn")
+  group=$(stat -f '%Sg' "$muninn")
+else
+  owner=$console_user
+  group=$(id -gn "$console_user")
+fi
+code="$muninn/code"
+dest="$code/plugins"
+for dir in "$muninn" "$code" "$dest"; do
+  if [ ! -d "$dir" ]; then
+    mkdir -p "$dir"
+    chown "$owner:$group" "$dir"
+    chmod 700 "$dir"
+  fi
+done
+install -o "$owner" -g "$group" -m 755 \
+  "$here/libmuninn_coinbase_connector.dylib" \
+  "$dest/libmuninn_coinbase_connector.dylib"
+install -o "$owner" -g "$group" -m 644 \
+  "$here/LICENSE" "$here/README.md" "$dest/"

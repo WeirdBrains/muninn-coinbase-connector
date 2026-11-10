@@ -124,9 +124,18 @@ release. It publishes one plugin build for each of these:
 | Fedora | `.rpm` for `x86_64` | `.rpm` for `aarch64` |
 | Arch Linux | `.pkg.tar.zst` for `x86_64` | `.pkg.tar.zst` for `aarch64` |
 
-The Windows installer puts `muninn_coinbase_connector.dll` in
-`C:\Program Files\Muninn Coinbase Connector\`. The macOS package puts
-`libmuninn_coinbase_connector.dylib` in `/usr/local/lib/muninn/`. The `.zip` and
+The Windows installer and the macOS package put the library in Muninn's plugin
+directory. When `MUNINN_HOME` is set they use `$MUNINN_HOME/code/plugins`.
+Otherwise they use the default home, `~/.muninn/code/plugins` (on Windows,
+`%USERPROFILE%\.muninn\code\plugins`). The Windows package reads the variable
+from the account that runs the installer. The macOS package reads it from the
+logged-in user's session, then from that user's shell startup files. Then:
+
+```sh
+mnnn plugins install ~/.muninn/code/plugins/libmuninn_coinbase_connector.dylib --kind ingest-connector --name coinbase
+```
+
+On Windows the file is `muninn_coinbase_connector.dll` in that folder. The `.zip` and
 macOS archive are the same library without an installer. A Debian package installs
 `/usr/lib/muninn/libmuninn_coinbase_connector.so`. Fedora uses `/usr/lib64/muninn/`.
 Arch uses `/usr/lib/muninn/`. Point `mnnn plugins install` at that file. The Windows

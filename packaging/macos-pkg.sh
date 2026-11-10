@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build a per-machine package. The library lands in /usr/local/lib/muninn.
+# Build a package that installs into the logged-in user's ~/.muninn/code/plugins.
 set -eu
 
 version="${VERSION:?VERSION is required}"
@@ -12,25 +12,20 @@ if [ ! -f "$lib" ]; then
   exit 1
 fi
 
-payload=$(mktemp -d)
-trap 'rm -rf "$payload"' EXIT
-mkdir -p "$payload/usr/local/lib/muninn" \
-  "$payload/usr/local/share/doc/muninn-coinbase-connector"
-cp "$lib" "$payload/usr/local/lib/muninn/libmuninn_coinbase_connector.dylib"
-cp "$root/LICENSE" "$root/README.md" \
-  "$payload/usr/local/share/doc/muninn-coinbase-connector/"
-chmod 755 "$payload/usr/local/lib/muninn/libmuninn_coinbase_connector.dylib"
-chmod 644 \
-  "$payload/usr/local/share/doc/muninn-coinbase-connector/LICENSE" \
-  "$payload/usr/local/share/doc/muninn-coinbase-connector/README.md"
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+mkdir -p "$work/scripts"
+cp "$root/packaging/macos-postinstall" "$work/scripts/postinstall"
+cp "$lib" "$work/scripts/libmuninn_coinbase_connector.dylib"
+cp "$root/LICENSE" "$root/README.md" "$work/scripts/"
+chmod 755 "$work/scripts/postinstall"
 
 mkdir -p "$root/dist"
 out="$root/dist/muninn-coinbase-connector-${version}-macos-${arch}.pkg"
 pkgbuild \
-  --root "$payload" \
+  --nopayload \
+  --scripts "$work/scripts" \
   --identifier llc.weirdbrains.muninn-coinbase-connector \
   --version "$version" \
-  --install-location / \
-  --ownership recommended \
   "$out"
 echo "$out"
