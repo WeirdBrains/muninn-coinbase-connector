@@ -100,7 +100,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
-          path: dist/*
+          path: dist/muninn-coinbase-connector-*
           if-no-files-found: error
 
   packages:

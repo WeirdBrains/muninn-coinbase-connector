@@ -1,4 +1,4 @@
-# Build the per-machine MSI from the release DLL, LICENSE, and README.
+# Build the per-user MSI from the release DLL, LICENSE, and README.
 $ErrorActionPreference = 'Stop'
 
 $version = $env:VERSION
@@ -35,6 +35,7 @@ $wxs = Join-Path $root 'packaging\windows.wxs'
 # WiX 7 refuses to build until this command accepts EULA id wix7. Switches are
 # the single-dash forms from `wix build -?`; `--arch` is not a switch.
 & $wix build '-acceptEula' 'wix7' '-arch' $wixArch `
+    '-pdbtype' 'none' `
     '-d' "Version=$version" `
     '-d' "Payload=$payloadDefine" `
     '-out' $out `
@@ -44,6 +45,19 @@ if ($LASTEXITCODE -ne 0) {
 }
 if (-not (Test-Path -LiteralPath $out)) {
     throw "wix did not write $out"
+}
+
+foreach ($dir in @($root, (Join-Path $root 'dist'))) {
+    Get-ChildItem -LiteralPath $dir -Filter 'cab*.cab' -ErrorAction SilentlyContinue |
+        Remove-Item -Force
+    Get-ChildItem -LiteralPath $dir -Filter '*.wixpdb' -ErrorAction SilentlyContinue |
+        Remove-Item -Force
+}
+
+$msiLength = (Get-Item -LiteralPath $out).Length
+$dllLength = (Get-Item -LiteralPath $dll).Length
+if ($msiLength -lt $dllLength) {
+    throw "MSI $msiLength bytes is smaller than the plugin DLL $dllLength bytes; cabinet was probably not embedded"
 }
 
 Remove-Item -LiteralPath $payload -Recurse -Force

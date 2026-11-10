@@ -3,7 +3,7 @@ members = [".", "crates/coinbase-exchange-fix"]
 
 [package]
 name = "muninn-coinbase-connector"
-version = "0.2.6"
+version = "0.2.7"
 edition = "2024"
 license = "BSD-3-Clause"
 
